@@ -16,18 +16,18 @@ app.use(cors()); // CORS 활성화
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// !!! 변경: Mistral API 키를 사용합니다.
+// !!! Mistral API 키를 사용합니다.
 const API_KEY = process.env.MISTRAL_API_KEY; 
 
 // 디버깅: API 키 로드 상태 확인
 if (!API_KEY) {
-    console.error("FATAL ERROR: MISTRAL_API_KEY가 환경 변수에 설정되어 있지 않습니다.");
+    console.error("FATAL ERROR: MISTRAL_API_KEY가 환경 변수에 설정되어 있지 않습니다. AI 기능이 작동하지 않습니다.");
 } else {
     console.log("INFO: MISTRAL_API_KEY가 성공적으로 로드되었습니다.");
 }
 
-// !!! 변경: Mistral AI API 설정
-const MISTRAL_MODEL = "mistral-tiny"; // 무료 크레딧 효율이 좋은 모델
+// !!! Mistral AI API 설정 (모델을 mistral-tiny에서 mistral-small로 변경하여 품질 개선 시도)
+const MISTRAL_MODEL = "mistral-small-latest"; 
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 
 console.log(`INFO: AI 모델을 Mistral AI API (${MISTRAL_MODEL})로 설정했습니다.`);
@@ -63,7 +63,7 @@ app.post("/chat", async (req, res) => {
     }
 
     // Mistral은 OpenAI의 Chat Completion 형식을 따릅니다.
-    const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 상세하게 답변하세요. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
+    const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 상세하며, 정확한 한국어로 답변하세요. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
     
     // Mistral API 요청 페이로드
     const payload = {
@@ -73,7 +73,7 @@ app.post("/chat", async (req, res) => {
             { role: "user", content: userMessage }
         ],
         temperature: 0.7,
-        max_tokens: 256
+        max_tokens: 1024 // 응답이 잘리지 않도록 토큰 제한을 크게 늘림
     };
     
     const response = await fetch(MISTRAL_API_URL, {
