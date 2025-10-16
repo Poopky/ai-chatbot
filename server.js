@@ -16,19 +16,20 @@ app.use(cors()); // CORS 활성화
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// NOTE: Hugging Face API 키를 사용하도록 변수명을 변경합니다.
 const API_KEY = process.env.HUGGINGFACE_API_KEY; 
 
-// 디버깅: API 키 로드 상태 확인
+// 디버깅: API 키 로드 상태 확인 (이전 단계에서 해결됨)
 if (!API_KEY) {
     console.error("FATAL ERROR: HUGGINGFACE_API_KEY가 환경 변수에 설정되어 있지 않습니다.");
 } else {
     console.log("INFO: HUGGINGFACE_API_KEY가 성공적으로 로드되었습니다.");
 }
 
-// 사용할 Hugging Face 모델 및 엔드포인트 설정
-const HF_MODEL = "google/gemma-2b-it";
+// !!! 변경: Mistral 7B 모델로 변경하여 엔드포인트 안정성을 높입니다.
+const HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2";
 const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+
+console.log(`INFO: Hugging Face 모델을 ${HF_MODEL}로 설정했습니다.`);
 
 const products = [
   {
@@ -60,8 +61,7 @@ app.post("/chat", async (req, res) => {
         return res.status(500).json({ reply: "Hugging Face API 키가 없어 AI 기능이 작동하지 않아요." });
     }
 
-    // Hugging Face Inference API는 단순 텍스트 입력을 사용합니다.
-    // 모델의 역할을 명확히 하기 위해 사용자 메시지 앞에 페르소나 지침을 추가합니다.
+    // Mistral 모델에 맞게 프롬프트 형식을 유지
     const prompt = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 상세하게 답변하세요. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.
     
     고객 질문: ${userMessage}`;
@@ -70,16 +70,13 @@ app.post("/chat", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Authorization 헤더에 Bearer 토큰을 사용합니다.
         "Authorization": `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
         inputs: prompt,
          parameters: {
-            // 텍스트 생성 길이와 다양성 설정
             max_new_tokens: 256,
             temperature: 0.7,
-            // 모델이 처음부터 다시 생성하지 않도록 처리
             return_full_text: false
          }
       })
@@ -89,18 +86,26 @@ app.post("/chat", async (req, res) => {
     if (!response.ok) {
         const errorDetails = await response.text();
         console.error(`Hugging Face API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
-        // 429 오류는 Hugging Face에서도 발생할 수 있습니다.
+        
+        // 404, 429, 500 등 오류 상태를 클라이언트에 전달
         return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Hugging Face)` });
     }
 
     const data = await response.json();
     let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
 
-    // Hugging Face 응답 구조는 보통 배열 [ { generated_text: "..." } ] 형태입니다.
     if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
       replyText = data[0].generated_text.trim();
+        // Mistral 모델이 프롬프트를 반복하는 경우, 불필요한 부분 제거
+        if (replyText.startsWith(prompt)) {
+            replyText = replyText.substring(prompt.length).trim();
+        }
     } else {
         console.error("Hugging Face 응답 구조 이상:", data); 
+        // 응답 본문에 에러 메시지가 있을 경우 출력 (Hugging Face 자주 발생)
+        if(data && data.error) {
+            replyText = `API에서 모델 에러가 발생했습니다: ${data.error}`;
+        }
     }
 
     // 추천 로직은 동일하게 유지
@@ -120,5 +125,5 @@ app.post("/chat", async (req, res) => {
 // 포트
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Hugging Face API 사용)`);
+    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Hugging Face API 사용: ${HF_MODEL})`);
 });
