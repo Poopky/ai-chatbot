@@ -63,7 +63,7 @@ app.post("/chat", async (req, res) => {
     }
 
     // Mistral은 OpenAI의 Chat Completion 형식을 따릅니다.
-    const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 간결하며, 정확한 한국어로 답변하세요. 답변은 두 문장을 넘기지 않도록 합니다. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
+    const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 간결하며, 정확한 한국어로 답변하세요. **절대로 우리 상점에 없는 특정 브랜드나 제품명을 언급하지 마세요. 오직 우리 상점에서 추천하는 상품에 대한 일반적인 이점만 설명하세요.** 답변은 두 문장을 넘기지 않도록 합니다. 답변 후에는 반드시 고객의 질문에 맞는 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
     
     // Mistral API 요청 페이로드
     const payload = {
@@ -106,13 +106,14 @@ app.post("/chat", async (req, res) => {
         console.error("Mistral 응답 구조 이상 또는 응답 텍스트 없음:", result);
     }
 
-    // 추천 로직은 동일하게 유지
+    // 추천 로직은 동일하게 유지 (여기서 선택된 상품 정보가 클라이언트로 전달됨)
     let selected = null;
     if (userMessage.includes("작은") || userMessage.includes("소형") || userMessage.includes("경량")) selected = products[0];
     else if (userMessage.includes("고급") || userMessage.includes("예쁜") || userMessage.includes("가죽")) selected = products[1];
     else if (userMessage.includes("튼튼") || userMessage.includes("산책") || userMessage.includes("오래")) selected = products[2];
     else if (Math.random() > 0.6) selected = products[Math.floor(Math.random() * products.length)];
 
+    // 최종적으로 답변 텍스트와 추천 상품 정보를 클라이언트에 보냅니다.
     res.json({ reply: replyText, product: selected });
   } catch (err) {
     console.error("서버 내부에서 예상치 못한 오류 발생:", err);
