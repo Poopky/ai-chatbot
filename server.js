@@ -12,22 +12,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// 모든 도메인에서의 요청을 허용합니다 (CORS 해결).
-// 만약 특정 도메인만 허용하고 싶다면 cors({ origin: 'https://[당신의 쇼핑몰 도메인]' }) 형식으로 변경해야 합니다.
-app.use(cors());
+app.use(cors()); // CORS 활성화
 app.use(express.json());
-// Render 환경에서는 정적 파일 경로가 다를 수 있으나, 일단 public 폴더를 지정합니다.
 app.use(express.static(path.join(__dirname, "public")));
 
-const API_KEY = process.env.OPENAI_API_KEY;
+// NOTE: Hugging Face API 키를 사용하도록 변수명을 변경합니다.
+const API_KEY = process.env.HUGGINGFACE_API_KEY; 
 
-// !!! 디버깅: API 키 로드 상태 확인
+// 디버깅: API 키 로드 상태 확인
 if (!API_KEY) {
-    console.error("FATAL ERROR: OPENAI_API_KEY가 .env 파일 또는 환경 변수에 설정되어 있지 않습니다.");
+    console.error("FATAL ERROR: HUGGINGFACE_API_KEY가 환경 변수에 설정되어 있지 않습니다.");
 } else {
-    console.log("INFO: OPENAI_API_KEY가 성공적으로 로드되었습니다.");
+    console.log("INFO: HUGGINGFACE_API_KEY가 성공적으로 로드되었습니다.");
 }
 
+// 사용할 Hugging Face 모델 및 엔드포인트 설정
+const HF_MODEL = "google/gemma-2b-it";
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
 const products = [
   {
@@ -56,42 +57,53 @@ app.post("/chat", async (req, res) => {
   try {
     
     if (!API_KEY) {
-        return res.status(500).json({ reply: "API 키가 없어 AI 기능이 작동하지 않아요." });
+        return res.status(500).json({ reply: "Hugging Face API 키가 없어 AI 기능이 작동하지 않아요." });
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Hugging Face Inference API는 단순 텍스트 입력을 사용합니다.
+    // 모델의 역할을 명확히 하기 위해 사용자 메시지 앞에 페르소나 지침을 추가합니다.
+    const prompt = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 상세하게 답변하세요. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.
+    
+    고객 질문: ${userMessage}`;
+    
+    const response = await fetch(HF_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Authorization 헤더에 Bearer 토큰을 사용합니다.
         "Authorization": `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "너는 강아지 하네스 판매 보조 AI야. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 해." },
-          { role: "user", content: userMessage }
-        ]
+        inputs: prompt,
+         parameters: {
+            // 텍스트 생성 길이와 다양성 설정
+            max_new_tokens: 256,
+            temperature: 0.7,
+            // 모델이 처음부터 다시 생성하지 않도록 처리
+            return_full_text: false
+         }
       })
     });
 
-    // !!! 디버깅: OpenAI API 응답 상태 확인
+    // Hugging Face API 응답 상태 확인
     if (!response.ok) {
         const errorDetails = await response.text();
-        console.error(`OpenAI API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
-        // API 키 오류(401) 등 발생 시 클라이언트에게 오류 메시지를 보냄
-        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요.` });
+        console.error(`Hugging Face API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
+        // 429 오류는 Hugging Face에서도 발생할 수 있습니다.
+        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Hugging Face)` });
     }
 
     const data = await response.json();
-    let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾"; // 이 메시지는 이제 OpenAI API가 성공했음에도 불구하고 응답 구조가 이상할 때만 남습니다.
-    
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      replyText = data.choices[0].message.content;
+    let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
+
+    // Hugging Face 응답 구조는 보통 배열 [ { generated_text: "..." } ] 형태입니다.
+    if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
+      replyText = data[0].generated_text.trim();
     } else {
-        // 응답은 200이었으나, body에 오류 메시지가 포함된 경우를 위해 로깅
-        console.error("OpenAI 응답 구조 이상:", data); 
+        console.error("Hugging Face 응답 구조 이상:", data); 
     }
 
+    // 추천 로직은 동일하게 유지
     let selected = null;
     if (userMessage.includes("작은") || userMessage.includes("소형") || userMessage.includes("경량")) selected = products[0];
     else if (userMessage.includes("고급") || userMessage.includes("예쁜") || userMessage.includes("가죽")) selected = products[1];
@@ -106,8 +118,7 @@ app.post("/chat", async (req, res) => {
 });
 
 // 포트
-const PORT = process.env.PORT || 10000; // 포트 10000으로 기본 설정
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    // 0.0.0.0을 사용하여 Render 환경에서 모든 인터페이스를 수신하도록 안내
-    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Render 환경 확인 필요)`);
+    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Hugging Face API 사용)`);
 });
