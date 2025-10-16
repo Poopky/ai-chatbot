@@ -16,20 +16,21 @@ app.use(cors()); // CORS 활성화
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const API_KEY = process.env.HUGGINGFACE_API_KEY; 
+// !!! 변경: Mistral API 키를 사용합니다.
+const API_KEY = process.env.MISTRAL_API_KEY; 
 
-// 디버깅: API 키 로드 상태 확인 (이전 단계에서 해결됨)
+// 디버깅: API 키 로드 상태 확인
 if (!API_KEY) {
-    console.error("FATAL ERROR: HUGGINGFACE_API_KEY가 환경 변수에 설정되어 있지 않습니다.");
+    console.error("FATAL ERROR: MISTRAL_API_KEY가 환경 변수에 설정되어 있지 않습니다.");
 } else {
-    console.log("INFO: HUGGINGFACE_API_KEY가 성공적으로 로드되었습니다.");
+    console.log("INFO: MISTRAL_API_KEY가 성공적으로 로드되었습니다.");
 }
 
-// !!! 변경: Llama 3 8B Instruct 모델로 변경 (무료 엔드포인트에서 접근 가능한지 테스트)
-const HF_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct";
-const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+// !!! 변경: Mistral AI API 설정
+const MISTRAL_MODEL = "mistral-tiny"; // 무료 크레딧 효율이 좋은 모델
+const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 
-console.log(`INFO: Hugging Face 모델을 ${HF_MODEL}로 설정했습니다.`);
+console.log(`INFO: AI 모델을 Mistral AI API (${MISTRAL_MODEL})로 설정했습니다.`);
 
 const products = [
   {
@@ -58,62 +59,51 @@ app.post("/chat", async (req, res) => {
   try {
     
     if (!API_KEY) {
-        return res.status(500).json({ reply: "Hugging Face API 키가 없어 AI 기능이 작동하지 않아요." });
+        return res.status(500).json({ reply: "Mistral API 키가 없어 AI 기능이 작동하지 않아요." });
     }
 
-    // Llama 3의 Instruction 포맷을 따르기 위해 프롬프트 구조 변경
+    // Mistral은 OpenAI의 Chat Completion 형식을 따릅니다.
     const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 상세하게 답변하세요. 답변 후에는 반드시 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
     
-    // Llama 3 Instruction Template 적용
-    const prompt = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+    // Mistral API 요청 페이로드
+    const payload = {
+        model: MISTRAL_MODEL,
+        messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: userMessage }
+        ],
+        temperature: 0.7,
+        max_tokens: 256
+    };
     
-    ${systemInstruction}<|eot|><|start_header_id|>user<|end_header_id|>
-    
-    ${userMessage}<|eot|><|start_header_id|>assistant<|end_header_id|>
-    
-    `;
-    
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(MISTRAL_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
+         // API 키를 Authorization 헤더로 전송
+         "Authorization": `Bearer ${API_KEY}`
       },
-      body: JSON.stringify({
-        inputs: prompt,
-         parameters: {
-            max_new_tokens: 256,
-            temperature: 0.7,
-            // Llama 3의 프롬프트 템플릿 전체를 반환하지 않도록 설정
-            return_full_text: false
-         }
-      })
+      body: JSON.stringify(payload)
     });
 
-    // Hugging Face API 응답 상태 확인
+    // API 응답 상태 확인
     if (!response.ok) {
         const errorDetails = await response.text();
-        console.error(`Hugging Face API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
+        console.error(`Mistral API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
         
-        // 404, 429, 500 등 오류 상태를 클라이언트에 전달
-        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Hugging Face)` });
+        // 오류 상태를 클라이언트에 전달
+        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Mistral API)` });
     }
 
-    const data = await response.json();
+    const result = await response.json();
     let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
 
-    if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
-      replyText = data[0].generated_text.trim();
-        // 응답 텍스트에 불필요한 프롬프트 잔여물이 포함될 수 있으므로 정리
-        const stopMarker = "<|eot|>";
-        if (replyText.includes(stopMarker)) {
-            replyText = replyText.substring(0, replyText.indexOf(stopMarker)).trim();
-        }
-    } else {
-        console.error("Hugging Face 응답 구조 이상:", data); 
-        if(data && data.error) {
-            replyText = `API에서 모델 에러가 발생했습니다: ${data.error}`;
-        }
+    // 응답 구조에서 텍스트 추출
+    const choice = result.choices?.[0];
+    if (choice && choice.message?.content) {
+        replyText = choice.message.content.trim();
+    } else {
+        console.error("Mistral 응답 구조 이상 또는 응답 텍스트 없음:", result);
     }
 
     // 추천 로직은 동일하게 유지
@@ -133,5 +123,5 @@ app.post("/chat", async (req, res) => {
 // 포트
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Hugging Face API 사용: ${HF_MODEL})`);
+    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Mistral API 사용: ${MISTRAL_MODEL})`);
 });
