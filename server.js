@@ -61,6 +61,7 @@ const products = [
 
 /**
  * Imagen API를 사용하여 이미지를 생성하고 base64 데이터를 반환합니다.
+ * 일시적 오류에 대비하여 지수 백오프(Exponential Backoff)를 사용하여 재시도합니다.
  * @param {string} prompt 이미지 생성을 위한 프롬프트
  * @returns {Promise<string|null>} Base64 이미지 데이터 또는 실패 시 null
  */
@@ -76,34 +77,58 @@ async function generateImage(prompt) {
         } 
     };
 
-    try {
-        const response = await fetch(IMAGEN_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+    const MAX_RETRIES = 3;
+    let delay = 1000; // 1 second initial delay
 
-        if (!response.ok) {
-            console.error(`Imagen API 호출 실패: Status ${response.status}`);
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            const response = await fetch(IMAGEN_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.status === 429 || response.status >= 500) {
+                // Too Many Requests (429) 또는 Server Error (5xx) 발생 시 재시도
+                if (i < MAX_RETRIES - 1) {
+                    console.warn(`Imagen API 일시적 실패 (Status: ${response.status}). ${delay / 1000}초 후 재시도...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // 지수 백오프
+                    continue;
+                }
+            }
+            
+            if (!response.ok) {
+                // 최종적으로 실패한 경우, 상세 오류 기록
+                const errorDetails = await response.text();
+                console.error(`Imagen API 호출 실패 (최종): Status ${response.status}. Details: ${errorDetails.substring(0, 200)}`);
+                return null;
+            }
+
+            const result = await response.json();
+            
+            // Imagen 3.0 응답 구조에서 base64 데이터 추출
+            const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+            
+            if (base64Data) {
+                return base64Data;
+            } else {
+                console.error("Imagen 응답에서 이미지 데이터 추출 실패 또는 형식 오류:", JSON.stringify(result).substring(0, 200));
+                return null;
+            }
+
+        } catch (error) {
+            // 네트워크 오류 처리
+            console.error(`이미지 생성 중 네트워크 오류 발생 (시도 ${i + 1}):`, error.message);
+            if (i < MAX_RETRIES - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+                continue;
+            }
             return null;
         }
-
-        const result = await response.json();
-        
-        // Imagen 3.0 응답 구조에서 base64 데이터 추출
-        const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
-        
-        if (base64Data) {
-            return base64Data;
-        } else {
-            console.error("Imagen 응답에서 이미지 데이터 추출 실패:", result);
-            return null;
-        }
-
-    } catch (error) {
-        console.error("이미지 생성 중 오류 발생:", error);
-        return null;
     }
+    return null; // 모든 재시도 후 실패
 }
 
 // 채팅 API
