@@ -16,21 +16,21 @@ app.use(cors()); // CORS 활성화
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// !!! Mistral API 키를 사용합니다.
-const API_KEY = process.env.MISTRAL_API_KEY; 
+// !!! Gemini API 키를 사용합니다.
+const API_KEY = process.env.GEMINI_API_KEY; 
 
 // 디버깅: API 키 로드 상태 확인
 if (!API_KEY) {
-    console.error("FATAL ERROR: MISTRAL_API_KEY가 환경 변수에 설정되어 있지 않습니다. AI 기능이 작동하지 않습니다.");
+    console.error("FATAL ERROR: GEMINI_API_KEY가 환경 변수에 설정되어 있지 않습니다. AI 기능이 작동하지 않습니다.");
 } else {
-    console.log("INFO: MISTRAL_API_KEY가 성공적으로 로드되었습니다.");
+    console.log("INFO: GEMINI_API_KEY가 성공적으로 로드되었습니다.");
 }
 
-// !!! Mistral AI API 설정 (모델을 mistral-tiny에서 mistral-small로 변경하여 품질 개선 시도)
-const MISTRAL_MODEL = "mistral-small-latest"; 
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
+// !!! Gemini API 설정
+const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025"; 
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
 
-console.log(`INFO: AI 모델을 Mistral AI API (${MISTRAL_MODEL})로 설정했습니다.`);
+console.log(`INFO: AI 모델을 Gemini API (${GEMINI_MODEL})로 설정했습니다.`);
 
 const products = [
   {
@@ -59,29 +59,26 @@ app.post("/chat", async (req, res) => {
   try {
     
     if (!API_KEY) {
-        return res.status(500).json({ reply: "Mistral API 키가 없어 AI 기능이 작동하지 않아요." });
+        return res.status(500).json({ reply: "Gemini API 키가 없어 AI 기능이 작동하지 않아요." });
     }
 
-    // Mistral은 OpenAI의 Chat Completion 형식을 따릅니다.
+    // Gemini API 요청 페이로드
     const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 간결하며, 정확한 한국어로 답변하세요. **절대로 우리 상점에 없는 특정 브랜드나 제품명을 언급하지 마세요. 오직 우리 상점에서 추천하는 상품에 대한 일반적인 이점만 설명하세요.** 답변은 두 문장을 넘기지 않도록 합니다. 답변 후에는 반드시 고객의 질문에 맞는 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
     
-    // Mistral API 요청 페이로드
     const payload = {
-        model: MISTRAL_MODEL,
-        messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: userMessage }
-        ],
-        temperature: 0.7,
-        max_tokens: 1024 // 응답이 잘리지 않도록 토큰 제한을 크게 늘림
+        contents: [{ role: "user", parts: [{ text: userMessage }] }],
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024
+        }
     };
     
-    const response = await fetch(MISTRAL_API_URL, {
+    // API 키는 URL 쿼리 파라미터로 전송됩니다.
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-         // API 키를 Authorization 헤더로 전송
-         "Authorization": `Bearer ${API_KEY}`
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
     });
@@ -89,24 +86,25 @@ app.post("/chat", async (req, res) => {
     // API 응답 상태 확인
     if (!response.ok) {
         const errorDetails = await response.text();
-        console.error(`Mistral API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
+        console.error(`Gemini API 호출 실패: Status ${response.status}. Details: ${errorDetails.substring(0, 100)}`);
         
         // 오류 상태를 클라이언트에 전달
-        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Mistral API)` });
+        return res.status(response.status).json({ reply: `AI 응답 실패. 상태 코드: ${response.status}. Render 로그를 확인해 주세요. (Gemini API)` });
     }
 
     const result = await response.json();
     let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
 
     // 응답 구조에서 텍스트 추출
-    const choice = result.choices?.[0];
-    if (choice && choice.message?.content) {
-        replyText = choice.message.content.trim();
+    const candidate = result.candidates?.[0];
+    if (candidate && candidate.content?.parts?.[0]?.text) {
+        replyText = candidate.content.parts[0].text.trim();
     } else {
-        console.error("Mistral 응답 구조 이상 또는 응답 텍스트 없음:", result);
+        console.error("Gemini 응답 구조 이상 또는 응답 텍스트 없음:", result);
     }
 
-    // 추천 로직은 동일하게 유지 (여기서 선택된 상품 정보가 클라이언트로 전달됨)
+
+    // 추천 로직은 동일하게 유지
     let selected = null;
     if (userMessage.includes("작은") || userMessage.includes("소형") || userMessage.includes("경량")) selected = products[0];
     else if (userMessage.includes("고급") || userMessage.includes("예쁜") || userMessage.includes("가죽")) selected = products[1];
@@ -124,5 +122,5 @@ app.post("/chat", async (req, res) => {
 // 포트
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Mistral API 사용: ${MISTRAL_MODEL})`);
+    console.log(`✅ 서버 실행 중: http://0.0.0.0:${PORT} (Gemini API 사용: ${GEMINI_MODEL})`);
 });
