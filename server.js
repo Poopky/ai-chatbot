@@ -29,109 +29,246 @@ if (!API_KEY) {
 // !!! Gemini API 설정
 const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025"; 
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
-// Imagen API 엔드포인트는 사용하지 않습니다.
 
 console.log(`INFO: AI 모델을 Gemini API (${GEMINI_MODEL})로 설정했습니다. (이미지 생성 기능은 사용하지 않음)`);
 
+// 하네스 상품 목록 (여기 있는 상품들 중에서만 추천이 이루어집니다.)
+// **이 상품 정보는 Gemini 모델이 추천 대상을 결정하는 데 사용됩니다.**
 const products = [
-  {
-    name: "데일리 소프트 하네스",
-    image: "https://cdn.pixabay.com/photo/2018/02/10/21/33/dog-3144257_1280.jpg",
-    price: "₩19,900",
-    link: "https://example.com/product/soft-harness",
-    prompt_desc: "A soft, lightweight dog harness with breathable mesh, simple and comfortable for daily walks."
-  },
-  {
-    name: "프리미엄 리드 하네스 세트",
-    image: "https://cdn.pixabay.com/photo/2017/09/25/13/12/dog-2785074_1280.jpg",
-    price: "₩29,900",
-    link: "https://example.com/product/premium-set",
-    prompt_desc: "A luxurious leather dog harness and leash set, dark brown color, with high-quality metal hardware."
-  },
-  {
-    name: "야외 산책용 견고한 하네스",
-    image: "https://cdn.pixabay.com/photo/2016/02/19/10/00/dog-1209621_1280.jpg",
-    price: "₩24,900",
-    link: "https://example.com/product/outdoor-harness",
-    prompt_desc: "A durable, rugged dog harness for hiking and outdoor activities, with reflective material and strong nylon straps."
-  }
+    {
+      id: "Harness_1",
+      name: "POOPKY Harness 1",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/11884ae57bba39a72ca6cda5285bc072.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-1/36/category/55/display/1/",
+      description: "A soft, lightweight dog harness with breathable mesh, simple and comfortable for daily walks. Best for small and toy breeds."
+    },
+    {
+      id: "Harness_2",
+      name: "POOPKY Harness 2",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250626/e40e78605f33109b49ce592450d854b5.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-2/43/category/55/display/1/",
+      description: "A luxurious leather dog harness and leash set, dark brown color, with high-quality metal hardware. Stylish and durable for medium breeds."
+    },
+    {
+      id: "Harness_3",
+      name: "POOPKY Harness 3",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/2e2f3e470836e4f594e0694281a269d4.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-3/44/category/55/display/1/",
+      description: "A durable, rugged dog harness for hiking and outdoor activities, with reflective material and strong nylon straps. Excellent for large and active dogs."
+    },
+    {
+      id: "Harness_4",
+      name: "POOPKY Harness 4",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/88d5836e778da8e30c650a4e6b2ca337.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-4/45/category/55/display/1/",
+      description: "Similar to Harness 3, focusing on ruggedness and security, great for escape artists or high-pulling dogs."
+    },
+    {
+      id: "Harness_5",
+      name: "POOPKY Harness 5",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250626/ecf419f3f99be9a682d22807d0cb7699.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-5/14/category/55/display/1/",
+      description: "A comfortable, everyday step-in harness with easy clips. Ideal for calm small to medium dogs."
+    },
+    {
+      id: "Harness_6",
+      name: "POOPKY Harness 6",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/377053af5e3ba70af5090c8d4415b6d2.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-6/13/category/55/display/1/",
+      description: "A vibrant, colorful harness focusing on visibility and style for trendy dogs."
+    },
+    {
+      id: "Harness_7",
+      name: "POOPKY Harness 7",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/013f3d4776784472c69876f36a30633e.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-7/48/category/55/display/1/",
+      description: "A no-pull front-clip harness designed to gently discourage pulling during walks. Best for strong pullers."
+    },
+    {
+      id: "Harness_8",
+      name: "POOPKY Harness 8",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/7afab427395149c562d4ede5ca202fb7.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-8/49/category/55/display/1/",
+      description: "A wide-chest harness offering maximum comfort and pressure distribution. Suitable for older dogs or those with neck issues."
+    },
+    {
+      id: "Harness_9",
+      name: "POOPKY Harness 9",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250707/c465822b338843ffba1fc9909f08fb92.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-9/50/category/55/display/1/",
+      description: "A multi-use adventure harness with a handle on the back for control. Perfect for outdoor excursions."
+    },
+    {
+      id: "Harness_10",
+      name: "POOPKY Harness 10",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/2c13ea386a26885eeb18ca5e895d4366.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-10/51/category/55/display/1/",
+      description: "A high-visibility harness with reflective strips and bright colors for night safety."
+    },
+    {
+      id: "Harness_11",
+      name: "POOPKY Harness 11",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/9e3e2573aee1c9eb4b2cd32458f2669b.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-11/52/category/55/display/1/",
+      description: "An adjustable, all-weather harness made from quick-drying material. Good for all seasons."
+    },
+    {
+      id: "Harness_12",
+      name: "POOPKY Harness 12",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/3d1638d679655f4dda34c2bc63de0988.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-12/53/category/55/display/1/",
+      description: "A simple, classic design harness focused on neck comfort and ease of put-on/take-off."
+    },
+    {
+      id: "Harness_13",
+      name: "POOPKY Harness 13",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250707/1abb54dc04754684cb63d87bb650cc88.png",
+      price: "29,000",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-13/54/category/55/display/1/",
+      description: "A heavy-duty, tactical style harness with MOLLE webbing and multiple attachment points. For working or service dogs."
+    },
 ];
 
-// **********************************************
-// * generateImage 함수는 Imagen API 결제 문제로 인해 제거되었습니다.
-// **********************************************
+// ID를 기반으로 상품을 찾는 헬퍼 함수
+const findProductById = (id) => products.find(p => p.id === id);
 
 
 // 채팅 API
 app.post("/chat", async (req, res) => {
-  const userMessage = req.body.message;
-  try {
+    const userMessage = req.body.message;
+    let selectedProduct = null;
     
-    if (!API_KEY) {
-        return res.status(500).json({ reply: "Gemini API 키가 없어 AI 기능이 작동하지 않아요." });
-    }
-
-    // --- 1. 상품 선택 로직 ---
-    let selected = null;
-    if (userMessage.includes("작은") || userMessage.includes("소형") || userMessage.includes("경량")) selected = products[0];
-    else if (userMessage.includes("고급") || userMessage.includes("예쁜") || userMessage.includes("가죽")) selected = products[1];
-    else if (userMessage.includes("튼튼") || userMessage.includes("산책") || userMessage.includes("오래")) selected = products[2];
-    else if (Math.random() > 0.6) selected = products[Math.floor(Math.random() * products.length)];
-
-
-    // --- 2. Gemini 답변 생성 로직 ---
-    const systemInstruction = `당신은 강아지 하네스 판매 보조 AI입니다. 고객의 질문에 친절하고 간결하며, 정확한 한국어로 답변하세요. **절대로 우리 상점에 없는 특정 브랜드나 제품명을 언급하지 마세요. 오직 우리 상점에서 추천하는 상품에 대한 일반적인 이점만 설명하세요.** 답변은 두 문장을 넘기지 않도록 합니다. 답변 후에는 반드시 고객의 질문에 맞는 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다.`;
-    
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: userMessage }] }],
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1024
+    try {
+        if (!API_KEY) {
+            return res.status(500).json({ reply: "Gemini API 키가 없어 AI 기능이 작동하지 않아요." });
         }
-    };
-    
-    const geminiResponse = await fetch(GEMINI_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
 
-    if (!geminiResponse.ok) {
-        // Gemini 응답 실패 처리
-        const errorDetails = await geminiResponse.text();
-        console.error(`Gemini API 호출 실패: Status ${geminiResponse.status}. Details: ${errorDetails.substring(0, 100)}`);
-        return res.status(geminiResponse.status).json({ reply: `AI 응답 실패. 상태 코드: ${geminiResponse.status}. (Gemini API)` });
+        // --- 1. Gemini에게 상품 추천 및 답변 생성 요청 ---
+
+        // Gemini에게 상품 목록을 전달하여 적합한 상품 ID를 선택하도록 요청합니다.
+        const productListForPrompt = products.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description
+        }));
+        
+        // Gemini에게 JSON 응답을 요청하기 위한 시스템 지침 및 스키마 정의
+        const systemInstruction = `
+            당신은 강아지 하네스 판매 보조 AI입니다.
+            고객의 질문에 친절하고 간결하며, 정확한 한국어로 답변해야 합니다.
+            **절대로 우리 상점에 없는 특정 브랜드나 제품명을 언급하지 마세요. 오직 우리 상점에서 추천하는 상품에 대한 일반적인 이점만 설명하세요.**
+            답변은 두 문장을 넘기지 않도록 합니다.
+
+            **임무:**
+            1. 고객의 질문(query)을 분석하여 아래 제공된 JSON 형식의 상품 목록 중 가장 적합한 상품 1개를 선택하세요.
+            2. 응답은 JSON 형식만 사용해야 하며, 'recommendation_id' 필드에 선택된 상품의 ID를, 'reply_text' 필드에 고객에게 보낼 챗봇 답변을 포함해야 합니다.
+
+            **사용 가능한 상품 목록:**
+            ${JSON.stringify(productListForPrompt, null, 2)}
+        `;
+
+        const responseSchema = {
+            type: "OBJECT",
+            properties: {
+                reply_text: {
+                    type: "STRING",
+                    description: "고객의 질문에 대한 챗봇의 간결한 한국어 답변입니다. 두 문장을 넘기지 않아야 합니다. 답변 후에는 반드시 고객의 질문에 맞는 하네스를 추천하는 멘트를 자연스럽게 추가해야 합니다."
+                },
+                recommendation_id: {
+                    type: "STRING",
+                    description: "고객의 질문에 가장 적합한 상품 ID (예: 'Harness_1')입니다. 상품 목록에 없는 ID를 반환해서는 안 됩니다."
+                }
+            },
+            required: ["reply_text", "recommendation_id"]
+        };
+
+
+        const payload = {
+            contents: [{ role: "user", parts: [{ text: userMessage }] }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema,
+                temperature: 0.7,
+                maxOutputTokens: 1024
+            }
+        };
+        
+        const geminiResponse = await fetch(GEMINI_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!geminiResponse.ok) {
+            // Gemini 응답 실패 처리
+            const errorDetails = await geminiResponse.text();
+            console.error(`Gemini API 호출 실패: Status ${geminiResponse.status}. Details: ${errorDetails.substring(0, 100)}`);
+            return res.status(geminiResponse.status).json({ reply: `AI 응답 실패. 상태 코드: ${geminiResponse.status}. (Gemini API)` });
+        }
+
+        const geminiResult = await geminiResponse.json();
+        let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
+        let recommendationId = null;
+        
+        const candidate = geminiResult.candidates?.[0];
+        
+        if (candidate && candidate.content?.parts?.[0]?.text) {
+            try {
+                // Gemini가 반환한 JSON 문자열 파싱
+                const jsonText = candidate.content.parts[0].text.trim();
+                const parsedJson = JSON.parse(jsonText);
+                
+                replyText = parsedJson.reply_text || replyText;
+                recommendationId = parsedJson.recommendation_id;
+                
+                // 파싱된 ID로 상품 정보 찾기
+                if (recommendationId) {
+                    selectedProduct = findProductById(recommendationId);
+                }
+
+            } catch (e) {
+                // JSON 파싱 실패 또는 응답 구조 이상
+                console.error("Gemini JSON 응답 파싱 실패:", e, "Raw Text:", candidate.content.parts[0].text);
+                replyText = "AI가 유효하지 않은 형식으로 응답했어요. 다시 시도해 주세요.";
+            }
+        }
+        
+        // --- 2. 클라이언트 응답 구성 ---
+        
+        let imageUrl = null;
+        if (selectedProduct) {
+            console.log(`INFO: AI가 추천한 상품 ID: ${selectedProduct.id}`);
+            imageUrl = selectedProduct.image;
+        } else {
+             // 만약 추천 상품을 찾지 못했다면, 랜덤으로 하나 추천
+            selectedProduct = products[Math.floor(Math.random() * products.length)];
+            console.log(`INFO: AI 추천 실패. 랜덤 상품 ID: ${selectedProduct.id} 추천.`);
+        }
+
+        // 최종적으로 답변 텍스트, 추천 상품 정보, 그리고 이미지 URL을 클라이언트에 보냅니다.
+        res.json({ 
+            reply: replyText, 
+            product: selectedProduct, 
+            imageUrl: selectedProduct ? selectedProduct.image : null 
+        });
+
+    } catch (err) {
+        console.error("서버 내부에서 예상치 못한 오류 발생:", err);
+        res.status(500).json({ reply: "서버 오류가 발생했어요 🐾 Render 로그를 확인해 주세요." });
     }
-
-    const geminiResult = await geminiResponse.json();
-    let replyText = "죄송해요, 응답을 가져올 수 없어요 🐾";
-    
-    const candidate = geminiResult.candidates?.[0];
-    if (candidate && candidate.content?.parts?.[0]?.text) {
-        replyText = candidate.content.parts[0].text.trim();
-    }
-
-
-    // --- 3. 이미지 URL 반환 로직 ---
-    // Imagen API 결제 문제로 인해 미리 설정된 이미지 URL을 반환합니다.
-    let imageUrl = null;
-    if (selected && selected.image) {
-        console.log(`INFO: Imagen API 대신 미리 설정된 이미지 URL 사용: ${selected.image}`);
-        imageUrl = selected.image;
-    }
-
-    // 최종적으로 답변 텍스트, 추천 상품 정보, 그리고 이미지 URL을 클라이언트에 보냅니다.
-    res.json({ 
-        reply: replyText, 
-        product: selected, 
-        imageUrl: imageUrl // 이제 'generatedImage' 대신 'imageUrl'을 사용합니다.
-    });
-
-  } catch (err) {
-    console.error("서버 내부에서 예상치 못한 오류 발생:", err);
-    res.status(500).json({ reply: "서버 오류가 발생했어요 🐾 Render 로그를 확인해 주세요." });
-  }
 });
 
 // 포트
