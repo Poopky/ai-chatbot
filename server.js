@@ -39,20 +39,17 @@ app.post('/chat', async (req, res) => {
         return res.status(400).json({ error: 'Message is required.' });
     }
 
-    // Gemini 모델을 위한 시스템 지침
+    // Gemini 모델을 위한 시스템 지침 (JSON 준수를 강력하게 요청)
     const systemInstruction = `당신은 POOPKY 쇼핑몰의 전문 상품 추천 AI 챗봇입니다.
-    사용자 문의에 친절하고 상세하게 답변하세요.
-    항상 사용자 메시지를 분석하여 제공된 상품 목록 중 가장 적합한 상품 1개를 **반드시** 추천해야 합니다.
-    추천 결과는 반드시 다음과 같은 JSON 형식으로 출력해야 합니다.
-    {
-      "reply": "사용자에게 보여줄 AI의 친절한 답변 (markdown 포맷 사용 가능)",
-      "product_id": "가장 적합한 상품의 ID (숫자)"
-    }
-    
+    당신의 유일한 목표는 사용자의 질문을 분석하여 제공된 상품 목록 중 가장 적합한 상품 1개를 고르고, 그 결과를 **반드시** 지정된 JSON Schema에 맞춰 출력하는 것입니다.
+    **절대로** JSON 외의 다른 텍스트(설명, 마크다운 코드 블록 마커 등)를 추가하지 마세요. 오직 유효한 JSON 객체만 출력해야 합니다.
+    **"reply" 필드**에는 사용자에게 보여줄 친절하고 상세한 답변을 작성하세요.
+    **"product_id" 필드**에는 추천할 상품의 ID(숫자)를 **반드시** 포함해야 합니다.
+
     ## 상품 목록:
     ${productListString}
-    
-    만약 질문이 상품 추천과 관련이 없더라도, 답변 후 "하지만 강아지 하네스에 대해 궁금한 점이 있다면 언제든 물어봐 주세요!"와 같이 상품 추천으로 유도하는 문구를 추가하세요.
+
+    만약 질문이 상품 추천과 관련 없더라도, "product_id"는 목록에서 아무 상품 ID(예: 1)를 선택하고 "reply"에 "하네스에 대해 궁금한 점이 있다면 언제든 물어봐 주세요!"와 같이 추천을 유도하는 문구를 추가하세요.
     절대 상품 목록이나 ID를 사용자에게 직접 노출하지 마세요.`;
 
     const userQuery = `사용자 질문: ${userMessage}`;
@@ -95,10 +92,21 @@ app.post('/chat', async (req, res) => {
             // 응답에서 JSON 문자열 추출 및 파싱
             const jsonString = apiData.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!jsonString) {
-                throw new Error("Invalid response format from Gemini API.");
+                console.error("Gemini API returned data but no parsable text content:", apiData);
+                throw new Error("Invalid response structure from Gemini API (No text content).");
             }
             
-            geminiResponse = JSON.parse(jsonString);
+            try {
+                geminiResponse = JSON.parse(jsonString);
+            } catch (parseError) {
+                // JSON 파싱 실패 시 원본 문자열을 콘솔에 기록
+                console.error("JSON Parsing failed. Raw string:", jsonString);
+                throw new Error("Failed to parse AI response as JSON.");
+            }
+
+            // 디버깅: 파싱된 응답 확인
+            console.log("Gemini Parsed Response:", geminiResponse);
+
             break; // 성공적으로 응답을 받은 경우
         } catch (error) {
             attempts++;
@@ -111,8 +119,11 @@ app.post('/chat', async (req, res) => {
         }
     }
 
-    if (!geminiResponse || !geminiResponse.product_id) {
-        return res.status(500).json({ reply: 'AI가 추천 결과를 생성하지 못했습니다. 질문을 구체적으로 해 주세요.', error: 'No product ID in response.' });
+    // 최종 확인: product_id가 숫자인지 확인
+    if (!geminiResponse || typeof geminiResponse.product_id !== 'number') {
+        // AI가 product_id를 누락했거나, 문자열 등으로 잘못 넣었을 경우
+        console.error("AI failed to return mandatory product_id (number). Final response:", geminiResponse);
+        return res.status(500).json({ reply: 'AI가 추천 결과를 생성하지 못했습니다. 질문을 구체적으로 해 주세요.', error: 'No product ID (number) in final response.' });
     }
 
     // 추천 상품 정보 찾기
