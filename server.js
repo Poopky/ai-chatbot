@@ -1,17 +1,16 @@
-// --- Node.js Express Server for AI Product Recommendation ---
-// 이 파일은 Node.js 서버 환경에서 실행되어야 하며, HTML 코드가 포함되어서는 안 됩니다.
+// --- Node.js Express Server for AI Product Recommendation (ES Module) ---
+// Node.js ESM 환경에 맞춰 require()를 import 구문으로 변경했습니다.
 
-// Load necessary modules
-const express = require('express');
-const cors = require('cors'); // CORS 미들웨어 (네트워크 연결 오류 수정에 필수)
-const fetch = require('node-fetch'); // Server-side API 호출용
+// Load necessary modules using ES Module syntax
+import express from 'express';
+import cors from 'cors'; // CORS 미들웨어 (네트워크 연결 오류 수정에 필수)
+// Note: Node.js v22.16.0은 전역 fetch를 지원하므로, 'node-fetch' import를 제거했습니다.
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware setup
 // **CORS Fix:** 모든 Originからの 요청을 허용합니다 (테스트 목적).
-// NOTE: 실제 운영 환경에서는 보안을 위해 `origin: 'https://[당신의_쇼핑몰_도메인].com'` 와 같이 특정 도메인만 허용하도록 변경해야 합니다.
 app.use(cors()); 
 app.use(express.json()); // JSON 요청 본문 파싱
 
@@ -79,6 +78,7 @@ app.post('/chat', async (req, res) => {
 
     while (attempts < maxAttempts) {
         try {
+            // fetch는 Node v22의 전역 API를 사용합니다.
             const apiResponse = await fetch(GEMINI_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
