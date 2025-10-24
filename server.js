@@ -38,49 +38,49 @@ const products = [
     {
       id: "Harness_1",
       name: "POOPKY Harness 1",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/11884ae57bba39a72ca6cda5285bc072.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/377053af5e3ba70af5090c8d4415b6d2.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-1/36/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-1/13/category/55/display/1/",
       description: "A soft, lightweight dog harness with breathable mesh, simple and comfortable for daily walks. Best for small and toy breeds."
     },
     {
       id: "Harness_2",
       name: "POOPKY Harness 2",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250626/e40e78605f33109b49ce592450d854b5.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/93f2be00aee163ae83e07d91007953e6.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-2/43/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-2/14/category/55/display/1/",
       description: "A luxurious leather dog harness and leash set, dark brown color, with high-quality metal hardware. Stylish and durable for medium breeds."
     },
     {
       id: "Harness_3",
       name: "POOPKY Harness 3",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/2e2f3e470836e4f594e0694281a269d4.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/11884ae57bba39a72ca6cda5285bc072.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-3/44/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-3/36/category/55/display/1/",
       description: "A durable, rugged dog harness for hiking and outdoor activities, with reflective material and strong nylon straps. Excellent for large and active dogs."
     },
     {
       id: "Harness_4",
       name: "POOPKY Harness 4",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/88d5836e778da8e30c650a4e6b2ca337.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/9f14d901f586118665ab764838ef0615.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-4/45/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-4/43/category/55/display/1/",
       description: "Similar to Harness 3, focusing on ruggedness and security, great for escape artists or high-pulling dogs."
     },
     {
       id: "Harness_5",
       name: "POOPKY Harness 5",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/big/20250626/ecf419f3f99be9a682d22807d0cb7699.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/79eea1dc2cd88ef5ffa3cb03907dbbe7.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-5/14/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-5/44/category/55/display/1/",
       description: "A comfortable, everyday step-in harness with easy clips. Ideal for calm small to medium dogs."
     },
     {
       id: "Harness_6",
       name: "POOPKY Harness 6",
-      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/377053af5e3ba70af5090c8d4415b6d2.png",
+      image: "https://ecimg.cafe24img.com/pg1527b59225322051/poopky1101/web/product/extra/big/20250626/4065b16c017478d411afeea1402c5d8f.png",
       price: "29,000",
-      link: "https://poopky1101.cafe24.com/product/poopky-harness-6/13/category/55/display/1/",
+      link: "https://poopky1101.cafe24.com/product/poopky-harness-6/45/category/55/display/1/",
       description: "A vibrant, colorful harness focusing on visibility and style for trendy dogs."
     },
     {
